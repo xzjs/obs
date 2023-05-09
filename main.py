@@ -82,11 +82,13 @@ class Demo(object):
             .run_async(pipe_stdin=True)
         )
         self.process = process
-        while self.task_list:
-            frame = self.env_step()
-            process.stdin.write(frame.astype(np.uint8).tobytes())
-            time.sleep(0.04)
-
+        try:
+            while self.task_list:
+                frame = self.env_step()
+                process.stdin.write(frame.astype(np.uint8).tobytes())
+                time.sleep(0.04)
+        except Exception as e:
+            print(e)
         process.stdin.close()
         process.wait()
 
@@ -94,7 +96,6 @@ class Demo(object):
 if __name__ == "__main__":
     task_name = 'drawer-place-display'
     seed = 0
-    demo = Demo(task_name=task_name, seed=seed)
     task_list = []
     r = redis.Redis(host='localhost', port=6379, decode_responses=True)
     pub = r.pubsub()
@@ -105,6 +106,7 @@ if __name__ == "__main__":
             print(msg["data"])
             try:
                 task_list = json.loads(msg["data"])
+                demo = Demo(task_name=task_name, seed=seed)
                 demo.reset_task_list(task_list=task_list)
                 if task_list:
                     demo.push()
