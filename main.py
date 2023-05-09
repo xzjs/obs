@@ -1,4 +1,5 @@
 import json
+import time
 from metaworld.task_config import TASK_DICK
 import numpy as np
 import random
@@ -35,7 +36,7 @@ class Demo(object):
         重置任务列表/终止任务
         """
         self.task_list = task_list
-        self.env.reset_task_list(task_list)
+        # self.env.reset_task_list(task_list)
         if self.process:
             self.process.terminate()  # 停止子进程
 
@@ -70,10 +71,13 @@ class Demo(object):
         return self.done
 
     def push(self) -> None:
+        frame = self.env_step()
+        print(frame.shape)
+        height, width, channels = frame.shape
         process = (
             ffmpeg
-            .input('pipe:')
-            .output('rtmp://172.18.116.126:1935/live/', f='flv')
+            .input('pipe:', format='rawvideo', pix_fmt='rgb24', s='{}x{}'.format(width, height))
+            .output('rtmp://172.18.116.126:1935/live/test', f='flv')
             .global_args("-re")
             .run_async(pipe_stdin=True)
         )
@@ -81,6 +85,10 @@ class Demo(object):
         while self.task_list:
             frame = self.env_step()
             process.stdin.write(frame.astype(np.uint8).tobytes())
+            time.sleep(0.04)
+
+        process.stdin.close()
+        process.wait()
 
 
 if __name__ == "__main__":
@@ -95,11 +103,12 @@ if __name__ == "__main__":
     for msg in msg_stream:
         if msg["type"] == "message":
             print(msg["data"])
-            task_list = json.loads(msg["data"])
-            demo.reset_task_list(task_list=task_list)
-            if task_list:
-                demo.push()
+            try:
+                task_list = json.loads(msg["data"])
+                demo.reset_task_list(task_list=task_list)
+                if task_list:
+                    demo.push()
+            except Exception as e:
+                print(e)
         elif msg["type"] == "subscribe":
             print(msg["channel"], '订阅成功')
-
-
