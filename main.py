@@ -1,5 +1,7 @@
 import json
 import time
+
+import requests
 from metaworld.task_config import TASK_DICK
 import numpy as np
 import random
@@ -72,16 +74,23 @@ class Demo(object):
 
     def push(self) -> None:
         frame = self.env_step()
-        print(frame.shape)
         height, width, channels = frame.shape
+        key = int(time.time())
         process = (
             ffmpeg
             .input('pipe:', format='rawvideo', pix_fmt='rgb24', s='{}x{}'.format(width, height))
-            .output('rtmp://172.18.116.126:1935/live/test', f='flv')
+            .output(f'rtmp://172.18.116.126/myapp/test666', f='flv', crf=18, preset='slower', vcodec='libx264')
             .global_args("-re")
             .run_async(pipe_stdin=True)
         )
         self.process = process
+
+        r = requests.post('http://172.18.116.126/api/model/start/', json={
+                          "user": "alex",
+                          "path": "http://172.18.116.126/live?app=myapp&stream=test666"
+                          })
+        print("start push stream*****************", r.status_code)
+
         try:
             while self.task_list:
                 frame = self.env_step()
