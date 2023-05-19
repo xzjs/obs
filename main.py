@@ -171,6 +171,7 @@ if __name__ == "__main__":
                 if msg['data'] == 'reset':
                     demo.reset()
                 elif msg['data'] == 'stop':
+                    demo.reset()
                     demo.stop = True
                 else:
                     task_list = json.loads(msg["data"])
