@@ -1,4 +1,5 @@
 import logging
+from multiprocessing import Process
 import threading
 import ffmpeg
 import numpy as np
@@ -96,21 +97,22 @@ class Demo(object):
         return obs_p
 
 
-def receive_msg():
+def receive_msg(uid):
     r = redis.Redis(host='localhost', port=6379, decode_responses=True)
     pub = r.pubsub()
     pub.subscribe('football')
     msg_stream = pub.listen()
     for msg in msg_stream:
         if msg["type"] == "message":
-            logging.info(msg["data"])
-            global instruction
-            instruction = msg['data']
+            data = json.loads(msg['data'])
+            if data['uid'] == uid:
+                global instruction
+                instruction = data['instruction']
         elif msg["type"] == "subscribe":
             logging.info('订阅成功')
 
 
-if __name__ == "__main__":
+def football(uid):
     arg_dict = {
         "env": "11_vs_11_kaggle",
         # "11_vs_11_kaggle" : environment used for self-play training
@@ -204,26 +206,27 @@ if __name__ == "__main__":
     logging.basicConfig(filename='./football.log', level=logging.INFO)
     frame, done, obs = demo.env_step(obs, h_out, fe)
     height, width, channels = frame.shape
-    key = int(time.time())
+    name = f'football{uid}'
     process = (
         ffmpeg
         .input('pipe:', format='rawvideo', pix_fmt='rgb24', s='{}x{}'.format(width, height))
-        .output(f'rtmp://172.18.116.126/myapp/football', f='flv', crf=18, preset='fast', vcodec='libx264', tune='zerolatency')
+        .output(f'rtmp://172.18.116.126/myapp/{name}', f='flv', crf=18, preset='fast', vcodec='libx264', tune='zerolatency')
         .global_args("-re")
         .run_async(pipe_stdin=True)
         # .run_async(pipe_stdin=True, quiet=True)
     )
     r = requests.post('http://172.18.116.126/api/model/start/', json={
-        "user": "football",
-        "path": "http://172.18.116.126/live?app=myapp&stream=football"
+        "user": name,
+        "path": f"http://172.18.116.126/live?app=myapp&stream={name}"
     })
     logging.info("start push stream*****************")
 
-    t = threading.Thread(target=receive_msg)
+    t = threading.Thread(target=receive_msg, kwargs={'uid': uid})
     t.setDaemon(True)
     t.start()
 
-    while True:
+    global instruction
+    while instruction != 'stop':
         # reset 表示重置环境 set_formation 表示设置阵容,img为返回的图片（是numpy格式）
         if instruction:
             if instruction == 'reset':
@@ -250,16 +253,30 @@ if __name__ == "__main__":
             instruction = 'reset'
         process.stdin.write(frame.astype(np.uint8).tobytes())
         # time.sleep(0.04)
-        if done:
-            process.stdin.close()
-            process.terminate()
-            logging.info('thread stop')
-            break
 
-    print(len(demo.img_list))
-    # img = demo.img_list[0]
-    # im = Image.fromarray(img)
-    # im.save("formation.jpeg")
-    # img = Image.fromarray(demo.img_list[0])
-    # img.save("formation.jepg")
-    # input()
+    process.stdin.close()
+    process.terminate()
+    logging.info(f"{os.getpid()} stop,football{uid} stop")
+
+
+if __name__ == "__main__":
+    processes = {}
+    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+    pub = r.pubsub()
+    pub.subscribe('football')
+    msg_stream = pub.listen()
+    for msg in msg_stream:
+        if msg["type"] == "message":
+            logging.info(msg["data"])
+            data = json.loads(msg["data"])
+            uid = data['uid']
+            # 启动进程
+            if (uid not in processes) or (processes[uid].is_alive() == False):
+                p = Process(
+                    target=football, kwargs={'uid': uid}, name=f"{uid}")
+                p.daemon = True
+                p.start()
+                logging.info(f'football{uid}进程启动')
+                processes[uid] = p
+        elif msg["type"] == "subscribe":
+            logging.info('订阅成功')

@@ -40,6 +40,7 @@ def push(uid):
         "user": name,
         "path": f"http://172.18.116.126/live?app=myapp&stream={name}"
     })
+    logging.info("response:"+r.text)
     logging.info("start push stream "+url)
     while True:
         frame = demo.env_step()
