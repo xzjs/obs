@@ -152,7 +152,7 @@ def football(uid):
     }
     os.environ['OPENBLAS_NUM_THREADS'] = '1'
     cur_time = datetime.now() + timedelta(hours=9)
-    arg_dict["log_dir"] = "logs/" + cur_time.strftime("[%m-%d]%H.%M.%S")
+    arg_dict["log_dir"] = "logs/" + cur_time.strftime("%m%d%H%M%S.log")
     save_args(arg_dict)
     if arg_dict["trained_model_path"] and 'kaggle' in arg_dict['env']:
         copy_models(os.path.dirname(
