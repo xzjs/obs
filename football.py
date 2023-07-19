@@ -249,6 +249,8 @@ def football(uid):
 
         try:
             frame, done, obs = demo.env_step(obs, h_out, fe)
+            if done:
+                instruction = 'reset'
         except Exception:
             instruction = 'reset'
         process.stdin.write(frame.astype(np.uint8).tobytes())

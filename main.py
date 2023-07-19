@@ -43,9 +43,12 @@ def push(uid):
     logging.info("response:"+r.text)
     logging.info("start push stream "+url)
     while True:
-        frame = demo.env_step()
-        process.stdin.write(frame.astype(np.uint8).tobytes())
-        time.sleep(0.02)
+        try:
+            frame = demo.env_step()
+            process.stdin.write(frame.astype(np.uint8).tobytes())
+            time.sleep(0.02)
+        except:
+            pass
 
 
 def arm(uid):
