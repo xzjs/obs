@@ -55,13 +55,16 @@ def arm(uid):
     '''
     监听命令函数
     '''
-    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+    r = redis.Redis(host='localhost', port=6379,
+                    decode_responses=True, password='123456')
     pub = r.pubsub()
     pub.subscribe('task_list')
     msg_stream = pub.listen()
     global demo
     thread = Thread(target=push, kwargs={'uid': uid}, daemon=True)
     thread.start()
+    while (demo == None):
+        pass
     for msg in msg_stream:
         if msg["type"] == "message":
             data = json.loads(msg["data"])
@@ -72,13 +75,14 @@ def arm(uid):
                 elif action == 'stop':
                     logging.info(f"{os.getpid()} stop,arm{uid} stop")
                     break
-                else:
+                elif isinstance(action, list):
                     demo.append_task_list(action)
 
 
 if __name__ == "__main__":
     processes = {}
-    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+    r = redis.Redis(host='localhost', port=6379,
+                    decode_responses=True, password='123456')
     pub = r.pubsub()
     pub.subscribe('task_list')
     msg_stream = pub.listen()
