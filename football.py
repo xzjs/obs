@@ -98,7 +98,7 @@ class Demo(object):
 
 
 def receive_msg(uid):
-    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+    r = redis.Redis(host='localhost', port=6379, decode_responses=True,password='123456')
     pub = r.pubsub()
     pub.subscribe('football')
     msg_stream = pub.listen()
@@ -263,7 +263,7 @@ def football(uid):
 
 if __name__ == "__main__":
     processes = {}
-    r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+    r = redis.Redis(host='localhost', port=6379, decode_responses=True,password='123456')
     pub = r.pubsub()
     pub.subscribe('football')
     msg_stream = pub.listen()
